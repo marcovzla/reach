@@ -71,5 +71,5 @@ object BratOutput extends App {
     arguments ++ events
   }
 
-  processPapers(documentNames)
+  processPapers(paperNames)
 }
