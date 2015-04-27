@@ -46,16 +46,14 @@ object BratOutput extends App {
     println(s"Writing output to $outName")
 
     val doc = docFromSerializedFile(s"$paper")
-    val mentions: Map[String, Seq[Mention]] =
-      retrieveMentions(doc)
-        .groupBy(m => m.repr)
+    val mentions: Seq[Mention] = retrieveMentions(doc)
+
+    // Read the original text file
 
     //Here do something with Brat
 
-    val standoff = Brat.dumpStandoff(mentions.values.flatMap(x => x).toSeq, doc)
-   output.write(standoff)
-
-   // mentions.foreach(pair => writeEvents(pair._1, pair._2, output))
+    val standoff = Brat.dumpStandoff(mentions, doc)
+    output.write(standoff)
 
     output.close()
   }
@@ -67,21 +65,11 @@ object BratOutput extends App {
   }
 
   def retrieveMentions(doc: Document): Seq[Mention] = {
-    extractor.extractFrom(doc)//.filter(_.isInstanceOf[EventMention]).map(_.asInstanceOf[EventMention])
+    val events = extractor.extractFrom(doc).filter(_.isInstanceOf[EventMention])
+    val arguments = events.flatMap(e => e.arguments.values).flatMap(x => x).filter(_.isInstanceOf[TextBoundMention])
+
+    arguments ++ events
   }
 
-  def cleanText(m: Mention): String = {
-    """(\s+|\n|\t|[;])""".r.replaceAllIn(m.document.sentences(m.sentence).getSentenceText(), " ")
-  }
-
-  def writeEvents(representation: String, mentions: Seq[EventMention], output: PrintWriter) {
-    def getText: String = {
-      mentions.sortBy(m => (m.sentence, m.start)) // sort by sentence, start idx
-        .map(m => cleanText(m)) // get text
-        .mkString("  ")
-    }
-    output.write(s"${mentions.size};;;;$representation;$getText\n")
-  }
-
-  processPapers(paperNames)
+  processPapers(documentNames)
 }
