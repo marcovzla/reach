@@ -4,14 +4,13 @@ import java.io.File
 import edu.arizona.sista.bionlp.reach.brat.Brat
 import edu.arizona.sista.odin._
 import edu.arizona.sista.processors.Document
-import edu.arizona.sista.odin.domains.bigmechanism.dryrun2015.RelationMention
 
 class BasicRuler(val rules: String, val actions: Actions) {
-  val engine = new ExtractorEngine(rules, actions, postprocess)
+  val engine = ExtractorEngine(rules, actions, postprocess)
 
   def extractFrom(doc: Document): Seq[Mention] = engine.extractFrom(doc)
 
-  def postprocess(mentions: Seq[Mention]): Seq[Mention] = {
+  def postprocess(mentions: Seq[Mention], state: State): Seq[Mention] = {
     mentions flatMap { mention =>
       mention match {
         // Do we somehow have an empty Mention?
