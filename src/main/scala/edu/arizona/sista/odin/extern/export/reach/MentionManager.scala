@@ -3,17 +3,16 @@ package edu.arizona.sista.odin.extern.export.reach
 import java.io._
 
 import scala.collection.mutable.MutableList
-import scala.collection.mutable.Map
 
 import scala.util.hashing.MurmurHash3._
 
-import edu.arizona.sista.processors._
 import edu.arizona.sista.odin._
+import edu.arizona.sista.bionlp.mentions._
 
 /**
   * Defines methods used to manipulate, cache, and output Mentions.
   *   Written by Tom Hicks. 4/3/2015.
-  *   Last Modified: Add cause arguments extractor.
+  *   Last Modified: Update for move of xref to grounding trait.
   */
 class MentionManager {
   // Constants:
@@ -119,13 +118,13 @@ class MentionManager {
     val indent = ("  " * level)
     mention match {
       case mention: TextBoundMention =>
-        mStrings += s"${indent}TextBoundMention: [S${mention.sentence}]: ${mention.label}"
+        mStrings += s"${indent}TextBoundMention: S${mention.sentence}/${mention.startOffset}/${mention.endOffset}: ${mention.label}"
         mStrings += s"${indent}text: ${mention.text}"
-        if (mention.isGrounded)
-          mStrings += s"${indent}xref: ${mention.xref.get}"
+        if (mention.toBioMention.isGrounded)
+          mStrings += s"${indent}xref: ${mention.toBioMention.xref.get}"
         if (level == 0) mStrings += ("=" * 80)
       case mention: EventMention =>
-        mStrings += s"${indent}EventMention: [S${mention.sentence}]: ${mention.label}"
+        mStrings += s"${indent}EventMention: S${mention.sentence}/${mention.startOffset}/${mention.endOffset}: ${mention.label}"
         mStrings += s"${indent}text: ${mention.text}"
         mStrings += s"${indent}trigger:"
         mStrings ++= mentionToStrings(mention.trigger, level+1)
@@ -139,7 +138,7 @@ class MentionManager {
         }
         if (level == 0) mStrings += ("=" * 80)
       case mention: RelationMention =>
-        mStrings += s"${indent}RelationMention: [S${mention.sentence}]: ${mention.label}"
+        mStrings += s"${indent}RelationMention: S${mention.sentence}/${mention.startOffset}/${mention.endOffset}: ${mention.label}"
         mStrings += s"${indent}text: ${mention.text}"
         mention.arguments foreach {
           case (k,vs) => {
