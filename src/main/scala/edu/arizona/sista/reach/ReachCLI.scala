@@ -82,7 +82,7 @@ object ReachCLI extends App {
     // BIDS
     // Storage for BioNLPProcessor docs and extracted documents for THIS nxml file
     var bioDocs = new mutable.ArrayBuffer[Document]()
-    var bidsMentions = new mutable.ArrayBuffer[(Int, BioMention)]()
+    var bidsMentions = new mutable.ArrayBuffer[BioMention]()
 
     // Process individual sections and collect all mentions
     val entries = Try(nxmlReader.readNxml(file)) match {
@@ -108,7 +108,7 @@ object ReachCLI extends App {
     }
 
     val paperMentions = new mutable.ArrayBuffer[BioMention]
-    for ((entry, ix) <- entries.zipWithIndex) {
+    for (entry <- entries) {
       try {
         // BIDS: Annotate the document and store it
         val doc = reach.mkDoc(entry.text, entry.name, entry.chunkId)
@@ -121,7 +121,7 @@ object ReachCLI extends App {
         bidsMentions ++= paperMentions.filter{
           case x:BioTextBoundMention => true
           case _ => false
-        } map {(ix, _)}
+        }
         ////////////////////////////////////////////
       } catch {
         case e: Exception =>
@@ -152,7 +152,7 @@ object ReachCLI extends App {
     val endNS = System.nanoTime
 
     // BIDS: Serialize the TSV files to be read by PANDAS in python
-    val bidsOutput = new BIDSOutput(bioDocs, bidsMentions)
+    val bidsOutput = new BIDSOutput(paperId, bioDocs, bidsMentions)
     FileUtils.writeLines(new File(bidsDir, s"$paperId.sentences"), bidsOutput.sentenceLines.asJavaCollection)
     FileUtils.writeLines(new File(bidsDir, s"$paperId.mentions"), bidsOutput.mentionLines.asJavaCollection)
     ///////////////////////////////////////////////////////////////
