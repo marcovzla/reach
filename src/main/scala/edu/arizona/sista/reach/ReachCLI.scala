@@ -13,7 +13,9 @@ import edu.arizona.sista.odin._
 import edu.arizona.sista.reach.mentions._
 import edu.arizona.sista.reach.extern.export._
 import edu.arizona.sista.reach.extern.export.fries._
+import edu.arizona.sista.reach.extern.bids._
 import edu.arizona.sista.reach.nxml._
+import edu.arizona.sista.processors.Document
 
 object ReachCLI extends App {
   // use specified config file or the default one if one is not provided
@@ -24,6 +26,7 @@ object ReachCLI extends App {
   val nxmlDir = new File(config.getString("nxmlDir"))
   val txtDir = new File(config.getString("txtDir"))
   val friesDir = new File(config.getString("friesDir"))
+  val bidsDir = new File(config.getString("bidsDir"))
   val encoding = config.getString("encoding")
   val outputType = config.getString("outputType")
   val logFile = new File(config.getString("logFile"))
@@ -55,6 +58,14 @@ object ReachCLI extends App {
     sys.error(s"${txtDir.getCanonicalPath} is not a directory")
   }
 
+  // if bidsDir does not exist create it
+  if (!bidsDir.exists) {
+    println(s"creating ${bidsDir.getCanonicalPath}")
+    FileUtils.forceMkdir(bidsDir)
+  } else if (!bidsDir.isDirectory) {
+    sys.error(s"${bidsDir.getCanonicalPath} is not a directory")
+  }
+
   println("initializing reach ...")
   val reach = new ReachSystem
 
@@ -67,6 +78,11 @@ object ReachCLI extends App {
     val paperId = FilenameUtils.removeExtension(file.getName)
     val startTime = now // start measuring time here
     val startNS = System.nanoTime
+
+    // BIDS
+    // Storage for BioNLPProcessor docs and extracted documents for THIS nxml file
+    var bioDocs = new mutable.ArrayBuffer[Document]()
+    var bidsMentions = new mutable.ArrayBuffer[(Int, BioMention)]()
 
     // Process individual sections and collect all mentions
     val entries = Try(nxmlReader.readNxml(file)) match {
@@ -92,9 +108,21 @@ object ReachCLI extends App {
     }
 
     val paperMentions = new mutable.ArrayBuffer[BioMention]
-    for (entry <- entries) {
+    for ((entry, ix) <- entries.zipWithIndex) {
       try {
-        paperMentions ++= reach.extractFrom(entry)
+        // BIDS: Annotate the document and store it
+        val doc = reach.mkDoc(entry.text, entry.name, entry.chunkId)
+        bioDocs += doc // Add it to the collection of docs
+
+        // Run REACH
+        paperMentions ++= reach.extractFrom(doc)
+
+        // Now store all the entities along their document index
+        bidsMentions ++= paperMentions.filter{
+          case x:BioTextBoundMention => true
+          case _ => false
+        } map {(ix, _)}
+        ////////////////////////////////////////////
       } catch {
         case e: Exception =>
           val report = s"""
@@ -122,6 +150,12 @@ object ReachCLI extends App {
     // done processing
     val endTime = now
     val endNS = System.nanoTime
+
+    // BIDS: Serialize the TSV files to be read by PANDAS in python
+    val bidsOutput = new BIDSOutput(bioDocs, bidsMentions)
+    FileUtils.writeLines(new File(bidsDir, s"$paperId.sentences"), bidsOutput.sentenceLines.asJavaCollection)
+    FileUtils.writeLines(new File(bidsDir, s"$paperId.mentions"), bidsOutput.mentionLines.asJavaCollection)
+    ///////////////////////////////////////////////////////////////
 
     try outputType match {
       case "text" =>
