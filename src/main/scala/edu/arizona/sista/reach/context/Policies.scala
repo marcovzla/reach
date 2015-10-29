@@ -11,7 +11,7 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
   protected def contextTypes = Seq("Species", "Organ", "CellType", "CellLine")
 
   // TODO: Do something smart to resolve ties
-  protected def untie(entities:Seq[(String, String)]) = entities.head
+  protected def untie(entities:Seq[(String, String)]):Seq[(String, String)] = entities
 
   protected def padContext(prevStep:Seq[Int], remainingSteps:List[Seq[Int]], repetitions:Seq[Int], bound:Int):List[Seq[Int]] = {
 
@@ -35,7 +35,7 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
                 // No prev, Current
                 case (None, Some(curr)) =>
                   newRepetitions(stepIx) = 1
-                  Seq(untie(curr))
+                  untie(curr)
                 // Prev, No current
                 case (Some(prev), None) =>
                   newRepetitions(stepIx) = repetitions(stepIx)+1
@@ -43,7 +43,7 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
                 // Prev, Current
                 case (Some(prev), Some(curr)) =>
                   newRepetitions(stepIx) = 1
-                  Seq(untie(curr))
+                  untie(curr)
                 // No prev, No current
                 case (None, None) =>
                   newRepetitions(stepIx) = 1
@@ -54,7 +54,7 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
               newRepetitions(stepIx) = 1
               currentContext.lift(contextType) match {
                 case Some(curr) =>
-                  Seq(untie(curr))
+                  untie(curr)
                 case None =>
                   Seq()
               }
