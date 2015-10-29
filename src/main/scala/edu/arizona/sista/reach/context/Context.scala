@@ -9,7 +9,7 @@ import java.io._
  * Base class for all context implementations
  * @author: Enrique Noriega <enoriega@email.arizona.edu>
  */
-abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)]){
+abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]]){
 
   // To be overriden in the implementations
   protected def inferContext:List[Seq[Int]]
@@ -31,12 +31,19 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
   val mentions = lines map (_._1)
   val entryFeatures = lines map (_._2) map extractEntryFeatures
 
-  protected val observedSparseMatrix:Seq[Seq[Int]] = mentions.map{
+  // Extend the observed matrix with manual annotations
+  val manualObservedMatrix = for(ix <- 0 until lines.size) yield manualAnn.lift(ix).getOrElse(Nil).map(vocabulary(_))
+
+
+  val candidateObservedSparseMatrix:Seq[Seq[Int]] = mentions.map{
     _.map {
       elem => vocabulary(Context.getContextKey(elem))
     }
   }
 
+  protected val observedSparseMatrix:Seq[Seq[Int]] = manualObservedMatrix.zip(candidateObservedSparseMatrix).map{
+      case (m, o) => (m ++ o).toSet.toSeq
+  }
   // Now the latent states matrix, the first step is to clone the observed matrix
   protected val latentSparseMatrix:List[Seq[Int]] = observedSparseMatrix.map(x=>x).map(_.filter(!inverseVocabulary(_)._1.startsWith("Context"))).toList
 
@@ -94,7 +101,7 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
   }
 }
 
-class DummyContext(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)]) extends Context(vocabulary, lines){
+class DummyContext(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]]) extends Context(vocabulary, lines, manualAnn){
   protected override def inferContext = this.latentSparseMatrix
   protected override def extractEntryFeatures(entry:FriesEntry):Array[(String, Double)] = Array()
 }

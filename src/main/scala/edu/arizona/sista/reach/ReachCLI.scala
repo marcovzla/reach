@@ -16,6 +16,7 @@ import edu.arizona.sista.reach.extern.export.fries._
 import edu.arizona.sista.reach.nxml._
 import edu.arizona.sista.reach.context._
 import edu.arizona.sista.reach.context.Context._
+import io.Source
 import edu.arizona.sista.odin.extern.export.context._
 
 object ReachCLI extends App {
@@ -31,6 +32,7 @@ object ReachCLI extends App {
   val encoding = config.getString("encoding")
   val outputType = config.getString("outputType")
   val logFile = new File(config.getString("logFile"))
+  val annotationsDir = new File(config.getString("annotationsDir"))
 
 
   // lets start a new log file
@@ -242,13 +244,78 @@ object ReachCLI extends App {
   println("Infering context ...")
 
   // Build the contextVocabulary
-  val contextVocabulary = contextNames.zipWithIndex.toMap
 
+  // var manualAnnotations = _
   // One iteration per document
   for((paperId, contextLines) <- contextDocs){
+    // Hack to add the annotations to the context
+    val annotations:List[Array[String]] = Source.fromFile(new File(annotationsDir + s"/$paperId.tsv")).getLines.toList.map(_.split("\t"))
+    val lines = annotations.map(_(0).toInt)
+    val ctxAnn = annotations.map{
+        _(1).split(",").map(_.trim).filter(x => !x.startsWith("E") && x != "").map{
+            ann => (s"${ann(0)}", ann)
+        }.toSeq
+    }.toSeq
+    for(ca <- ctxAnn){
+        contextNames ++= ca
+    }
+    ctxAnn.foreach{x => println(s"Ctx: ${x.mkString(" ")}")}
+    val manualAnnotations:Map[Int, Seq[(String, String)]] = lines.zip(ctxAnn).toMap
+
+    // Now create the context events file
+    val evtAnn = annotations.map{
+        _(1).split(",").map(_.trim).filter(x => x.startsWith("E") && x != "").toSeq
+    }.toSeq
+
+    evtAnn.foreach{x => println(s"Evt: ${x.mkString(" ")}")}
+
+    val relations = annotations.map{
+        _(2).split(",").map(_.trim).filter(x => x.length > 0).toSeq
+    }
+
+    relations.foreach{x => println(s"Rel: ${x.mkString(" ")}")}
+
+    val event_context = evtAnn zip relations
+
+    // Create a map of the context annotations with their line
+    val ctxLines:Map[String, Int] = annotations.map{
+        ann =>
+            // Tuple with collapsed annotations
+            (ann(0).toInt, ann(1).split(",").map(_.trim).filter(x => x != ""))
+    }.filter(_._2.size > 0).flatMap{
+        case (ix, ctxs) =>
+            ctxs map {(_, ix)}
+    }.toMap
+
+    val contextVocabulary = contextNames.zipWithIndex.toMap
+    val events_context:Seq[String] = (0 until annotations.size).flatMap{
+        ix:Int =>
+            val (evts, rels) = event_context(ix)
+            // Only work in lines with events
+            if(evts.length > 0){
+                for(rel <- rels) yield {
+                    val ctxIx:Int = ctxLines.getOrElse(rel, -1)
+                    val ctxId:Int = if(rel != ""){ contextVocabulary((s"${rel(0)}", rel)) } else {-1}
+                    val ctxType:String = rel(0) match {
+                        case 'C' => "CellType"
+                        case 'T' => "TissueType"
+                        case 'S' => "Species"
+                        case _ => "Unspecified"
+                    }
+                    s"Event\t$ix\t$ctxType\t$ctxId\t$ctxIx"
+                }
+            }else{
+                Seq("")
+            }
+    }.filter(_ != "")
+
+    val eventsContextFile = new File(contextDir, s"$paperId.events_context")
+    FileUtils.writeLines(eventsContextFile, events_context.asJavaCollection)
+    //////////////////////////////////////////////
 
     // Create a Context instance to do inference and make queries
-    val context = new FillingContext(contextVocabulary, contextLines.toSeq)
+
+    val context = new DummyContext(contextVocabulary, contextLines.toSeq, manualAnnotations)
     outputContext(context, contextDir + File.separator + paperId)
     outputVocabularies(context, contextDir + File.separator + paperId)
   }

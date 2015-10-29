@@ -5,9 +5,8 @@ import edu.arizona.sista.reach.nxml.FriesEntry
 
 // Policy Two
 class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
- lines:Seq[(Seq[BioMention], FriesEntry)],
- bound:Int = 5 // Default bound to extend the policy
-) extends Context(vocabulary, lines){
+ lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]] = Map(), bound:Int = 5 // Default bound to extend the policy
+) extends Context(vocabulary, lines, manualAnn){
 
   protected def contextTypes = Seq("Species", "Organ", "CellType", "CellLine")
 
@@ -77,14 +76,13 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
 }
 
 // Policy 1
-class PaddingContext(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)]) extends BoundedPaddingContext(vocabulary, lines, lines.size){
+class PaddingContext(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]]=Map()) extends BoundedPaddingContext(vocabulary, lines, manualAnn, lines.size){
 
 }
 
 // Policy 3
 class FillingContext(vocabulary:Map[(String, String), Int],
- lines:Seq[(Seq[BioMention], FriesEntry)],
-  bound:Int = 5) extends BoundedPaddingContext(vocabulary, lines, bound){
+ lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]] = Map(), bound:Int = 5) extends BoundedPaddingContext(vocabulary, lines, manualAnn, bound){
 
     // Override the infer context to fill the empty slots
     protected override def inferContext = {
