@@ -243,9 +243,23 @@ object ReachCLI extends App {
   // CONTEXT magic!
   println("Infering context ...")
 
-  // Build the contextVocabulary
+  // Extend the contextNames with annotation labels
+  for((paperId, contextLines) <- contextDocs){
+    val annotations:List[Array[String]] = Source.fromFile(new File(annotationsDir + s"/$paperId.tsv")).getLines.toList.map(_.split("\t"))
 
-  // var manualAnnotations = _
+    val ctxAnn = annotations.map{
+        _(1).split(",").map(_.trim).filter(x => !x.startsWith("E") && x != "").map{
+            ann => (s"${ann(0)}", ann)
+        }.toSeq
+    }.toSeq
+
+    for(ca <- ctxAnn){
+        contextNames ++= ca
+    }
+  }
+  val contextVocabulary = contextNames.zipWithIndex.toMap
+  ///////////////////////////////////////////////
+
   // One iteration per document
   for((paperId, contextLines) <- contextDocs){
     // Hack to add the annotations to the context
@@ -256,10 +270,8 @@ object ReachCLI extends App {
             ann => (s"${ann(0)}", ann)
         }.toSeq
     }.toSeq
-    for(ca <- ctxAnn){
-        contextNames ++= ca
-    }
-    ctxAnn.foreach{x => println(s"Ctx: ${x.mkString(" ")}")}
+
+    // ctxAnn.foreach{x => println(s"Ctx: ${x.mkString(" ")}")}
     val manualAnnotations:Map[Int, Seq[(String, String)]] = lines.zip(ctxAnn).toMap
 
     // Now create the context events file
@@ -267,13 +279,13 @@ object ReachCLI extends App {
         _(1).split(",").map(_.trim).filter(x => x.startsWith("E") && x != "").toSeq
     }.toSeq
 
-    evtAnn.foreach{x => println(s"Evt: ${x.mkString(" ")}")}
+    // evtAnn.foreach{x => println(s"Evt: ${x.mkString(" ")}")}
 
     val relations = annotations.map{
         _(2).split(",").map(_.trim).filter(x => x.length > 0).toSeq
     }
 
-    relations.foreach{x => println(s"Rel: ${x.mkString(" ")}")}
+    // relations.foreach{x => println(s"Rel: ${x.mkString(" ")}")}
 
     val event_context = evtAnn zip relations
 
@@ -287,7 +299,6 @@ object ReachCLI extends App {
             ctxs map {(_, ix)}
     }.toMap
 
-    val contextVocabulary = contextNames.zipWithIndex.toMap
     val events_context:Seq[String] = (0 until annotations.size).flatMap{
         ix:Int =>
             val (evts, rels) = event_context(ix)

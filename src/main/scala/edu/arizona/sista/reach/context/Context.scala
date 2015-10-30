@@ -58,10 +58,10 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
 
   def densifyFeatures:Seq[Seq[Double]] = entryFeatures map { _.map(_._2).toSeq }
 
-  def latentStateMatrix:Seq[Seq[Boolean]] = densifyMatrix(inferedLatentSparseMatrix)
+  def latentStateMatrix:Seq[Seq[Boolean]] = densifyMatrix(inferedLatentSparseMatrix, vocabulary.filter(!_._1._1.startsWith("Context")))
 
   def featureMatrix:Seq[Seq[Double]] = {
-    val categorical = densifyMatrix(observedSparseMatrix)
+    val categorical = densifyMatrix(observedSparseMatrix, vocabulary)
     val numerical = densifyFeatures
 
     categorical zip numerical  map { case (c, n) => c.map{ case false => 0.0; case true => 1.0 } ++ n }
@@ -71,7 +71,7 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
 
   def observationVocavulary = inverseVocabulary.values.map(x => x._1 +  "||" + x._2) ++ entryFeaturesNames
 
-  private def densifyMatrix(matrix:Seq[Seq[Int]]):Seq[Seq[Boolean]] = {
+  private def densifyMatrix(matrix:Seq[Seq[Int]], voc:Map[(String, String), Int]):Seq[Seq[Boolean]] = {
     // Recursive function to fill the "matrix"
     def _helper(num:Int, bound:Int, segment:List[Int]):List[Boolean] = {
 
@@ -95,7 +95,7 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
     matrix map {
       row => {
         val sortedRow = row.sorted.toList
-        _helper(0, vocabulary.size, sortedRow)
+        _helper(0, voc.size, sortedRow)
       }
     }
   }
