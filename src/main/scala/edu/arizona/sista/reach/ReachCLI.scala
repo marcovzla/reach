@@ -299,6 +299,7 @@ object ReachCLI extends App {
             ctxs map {(_, ix)}
     }.toMap
 
+    val lat_voc = contextVocabulary.keys.filter(!_._1.startsWith("Context")).zipWithIndex.toMap
     val events_context:Seq[String] = (0 until annotations.size).flatMap{
         ix:Int =>
             val (evts, rels) = event_context(ix)
@@ -306,14 +307,22 @@ object ReachCLI extends App {
             if(evts.length > 0){
                 for(rel <- rels) yield {
                     val ctxIx:Int = ctxLines.getOrElse(rel, -1)
-                    val ctxId:Int = if(rel != ""){ contextVocabulary((s"${rel(0)}", rel)) } else {-1}
+                    val ctxId:Int = if(rel != ""){
+                      val key = (s"${rel(0)}", rel)
+                      if(lat_voc contains key) lat_voc(key) else -1
+                    } else {-1}
                     val ctxType:String = rel(0) match {
                         case 'C' => "CellType"
                         case 'T' => "TissueType"
                         case 'S' => "Species"
                         case _ => "Unspecified"
                     }
-                    s"Event\t$ix\t$ctxType\t$ctxId\t$ctxIx"
+                    if(ctxId == -1 || ctxIx == -1){
+                      ""
+                    }
+                    else{
+                      s"Event\t$ix\t$ctxType\t$ctxId\t$ctxIx"
+                    }
                 }
             }else{
                 Seq("")
@@ -326,7 +335,7 @@ object ReachCLI extends App {
 
     // Create a Context instance to do inference and make queries
 
-    val context = new FillingContext(contextVocabulary, contextLines.toSeq, manualAnnotations)
+    val context = new BoundedPaddingContext(contextVocabulary, contextLines.toSeq, manualAnnotations)
     outputContext(context, contextDir + File.separator + paperId)
     outputVocabularies(context, contextDir + File.separator + paperId)
   }

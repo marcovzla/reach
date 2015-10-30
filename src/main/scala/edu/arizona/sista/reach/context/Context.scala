@@ -24,6 +24,10 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
   // Inverse vocabulary to resolve the names back
   protected val inverseVocabulary = vocabulary map (_.swap)
 
+  // Filtered vocabularies for the latent states
+  protected val filteredVocabulary = vocabulary.keys.filter(!_._1.startsWith("Context")).zipWithIndex.toMap
+  protected val inverseFilteredVocabulary = filteredVocabulary map (_.swap)
+
   //protected val entryFeaturesVocabulary:Map[(String, String), Int]
 
   // Build sparse matrices
@@ -45,7 +49,20 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
       case (m, o) => (m ++ o).toSet.toSeq
   }
   // Now the latent states matrix, the first step is to clone the observed matrix
-  protected val latentSparseMatrix:List[Seq[Int]] = observedSparseMatrix.map(x=>x).map(_.filter(!inverseVocabulary(_)._1.startsWith("Context"))).toList
+  val manualLatentMatrix = for(ix <- 0 until lines.size) yield manualAnn.lift(ix).getOrElse(Nil).map(filteredVocabulary(_))
+
+  val candidateLatentSparseMatrix:List[Seq[Int]] = mentions.map{
+    _.map{
+      elem =>
+        val key = Context.getContextKey(elem)
+        if (!key._1.startsWith("Context")) filteredVocabulary(key) else -1
+        //filteredVocabulary(key)
+    }.filter(_ != -1)
+  }.toList
+
+  protected val latentSparseMatrix:List[Seq[Int]] = manualLatentMatrix.zip(candidateLatentSparseMatrix).map{
+      case (m, o) => (m ++ o).toSet.toSeq
+  }.toList
 
   // Apply context fillin heuristic
   protected val inferedLatentSparseMatrix:List[Seq[Int]] = inferContext
@@ -58,8 +75,7 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
 
   def densifyFeatures:Seq[Seq[Double]] = entryFeatures map { _.map(_._2).toSeq }
 
-  def latentStateMatrix:Seq[Seq[Boolean]] = densifyMatrix(inferedLatentSparseMatrix, vocabulary.filter(!_._1._1.startsWith("Context")))
-
+  def latentStateMatrix:Seq[Seq[Boolean]] = densifyMatrix(inferedLatentSparseMatrix, filteredVocabulary)
   def featureMatrix:Seq[Seq[Double]] = {
     val categorical = densifyMatrix(observedSparseMatrix, vocabulary)
     val numerical = densifyFeatures
@@ -67,9 +83,9 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
     categorical zip numerical  map { case (c, n) => c.map{ case false => 0.0; case true => 1.0 } ++ n }
   }
 
-  def latentVocabulary = inverseVocabulary.values.filter(!_._1.startsWith("Context")).map(x => x._1 +  "||" + x._2)
+  def latentVocabulary = inverseFilteredVocabulary.toList.sortBy(_._1).map(x => x._1 +  "||" + x._2)
 
-  def observationVocavulary = inverseVocabulary.values.map(x => x._1 +  "||" + x._2) ++ entryFeaturesNames
+  def observationVocavulary = inverseVocabulary.toList.sortBy(_._1).map(x => x._1 +  "||" + x._2) ++ entryFeaturesNames
 
   private def densifyMatrix(matrix:Seq[Seq[Int]], voc:Map[(String, String), Int]):Seq[Seq[Boolean]] = {
     // Recursive function to fill the "matrix"
@@ -102,7 +118,10 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
 }
 
 class DummyContext(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]]) extends Context(vocabulary, lines, manualAnn){
-  protected override def inferContext = this.latentSparseMatrix
+  protected override def inferContext = {
+    println(s"Columns: ${this.latentSparseMatrix.flatMap(x=>x).toSet.size}")
+    this.latentSparseMatrix
+  }
   protected override def extractEntryFeatures(entry:FriesEntry):Array[(String, Double)] = Array()
 }
 

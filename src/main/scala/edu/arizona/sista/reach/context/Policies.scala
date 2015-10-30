@@ -19,8 +19,8 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
 
       case head::tail =>
         // Group the prev step inferred row and the current by context type, then recurse
-        val prevContext = prevStep map (this.inverseVocabulary(_)) groupBy (_._1)
-        val currentContext = head map (this.inverseVocabulary(_)) groupBy (_._1)
+        val prevContext = prevStep map (this.inverseFilteredVocabulary(_)) groupBy (_._1)
+        val currentContext = head map (this.inverseFilteredVocabulary(_)) groupBy (_._1)
 
         // Apply the heuristic
         // Inferred context of type "x"
@@ -60,7 +60,7 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
               }
             }
 
-        } map (this.vocabulary(_))
+        } map (this.filteredVocabulary(_))
 
         // Recurse
         currentStep :: padContext(currentStep, tail, newRepetitions, bound)
@@ -89,7 +89,7 @@ class FillingContext(vocabulary:Map[(String, String), Int],
       // Get the most common mentioned context of each type
       val defaultContexts = this.mentions.flatten.map(Context.getContextKey(_))  // Get the context keys of the mentions
         .filter(x => this.contextTypes.contains(x._1)).groupBy(_._1) // Keep only those we care about and group them by type
-        .mapValues(bucket => bucket.map(this.vocabulary(_))) // Get their numeric value from the vocabulary
+        .mapValues(bucket => bucket.map(this.filteredVocabulary(_))) // Get their numeric value from the vocabulary
         .mapValues(bucket => bucket.groupBy(identity).mapValues(_.size)) // Count the occurences
         .mapValues(bucket => Seq(bucket.maxBy(_._2)._1)) // Select the most common element
 
@@ -100,12 +100,12 @@ class FillingContext(vocabulary:Map[(String, String), Int],
       paddedContext map {
         step =>
           // Existing contexts for this line
-          val context = step.map(this.inverseVocabulary(_)).groupBy(_._1)
+          val context = step.map(this.inverseFilteredVocabulary(_)).groupBy(_._1)
           this.contextTypes flatMap {
             ctype =>
               context.lift(ctype) match {
                 case Some(x) =>
-                  x map (this.vocabulary(_))
+                  x map (this.filteredVocabulary(_))
                 case None =>
                   defaultContexts.lift(ctype).getOrElse(Seq())
               }
