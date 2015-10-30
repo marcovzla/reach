@@ -1,5 +1,6 @@
 package edu.arizona.sista.reach.context
 
+import collection.mutable
 import edu.arizona.sista.reach.mentions._
 import edu.arizona.sista.reach.nxml.FriesEntry
 
@@ -13,64 +14,102 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
   // TODO: Do something smart to resolve ties
   protected def untie(entities:Seq[(String, String)]):Seq[(String, String)] = entities
 
-  protected def padContext(prevStep:Seq[Int], remainingSteps:List[Seq[Int]], repetitions:Seq[Int], bound:Int):List[Seq[Int]] = {
+  // protected def padContext(prevStep:Seq[Int], remainingSteps:List[Seq[Int]], repetitions:Seq[Int], bound:Int):List[Seq[Int]] = {
+  //
+  //   remainingSteps match {
+  //
+  //     case head::tail =>
+  //       // Group the prev step inferred row and the current by context type, then recurse
+  //       val prevContext = prevStep map (this.inverseFilteredVocabulary(_)) groupBy (_._1)
+  //       val currentContext = head map (this.inverseFilteredVocabulary(_)) groupBy (_._1)
+  //
+  //       // Apply the heuristic
+  //       // Inferred context of type "x"
+  //       val newRepetitions = new Array[Int](repetitions.size)
+  //
+  //       val currentStep = contextTypes.flatMap{ // Do this for each type of context. Flat Map as there could be more than one context of a type (maybe)
+  //         contextType =>
+  //           val stepIx = this.contextTypes.indexOf(contextType)
+  //
+  //           if(repetitions(stepIx) < bound){
+  //             (prevContext.lift(contextType), currentContext.lift(contextType)) match {
+  //               // No prev, Current
+  //               case (None, Some(curr)) =>
+  //                 newRepetitions(stepIx) = 1
+  //                 untie(curr)
+  //               // Prev, No current
+  //               case (Some(prev), None) =>
+  //                 newRepetitions(stepIx) = repetitions(stepIx)+1
+  //                 Seq(prev.head)
+  //               // Prev, Current
+  //               case (Some(prev), Some(curr)) =>
+  //                 newRepetitions(stepIx) = 1
+  //                 untie(curr)
+  //               // No prev, No current
+  //               case (None, None) =>
+  //                 newRepetitions(stepIx) = 1
+  //                 Nil
+  //             }
+  //           }
+  //           else{
+  //             newRepetitions(stepIx) = 1
+  //             currentContext.lift(contextType) match {
+  //               case Some(curr) =>
+  //                 untie(curr)
+  //               case None =>
+  //                 Seq()
+  //             }
+  //           }
+  //
+  //       } map (this.filteredVocabulary(_))
+  //
+  //       // Recurse
+  //       currentStep :: padContext(currentStep, tail, newRepetitions, bound)
+  //
+  //
+  //     case Nil => Nil
+  //   }
+  // }
+  // Apply the policy
+
+  protected def padContext(prevStep:Seq[Int], remainingSteps:List[Seq[Int]], repetitions:Map[Int, Int], bound:Int):List[Seq[Int]] = {
 
     remainingSteps match {
 
       case head::tail =>
-        // Group the prev step inferred row and the current by context type, then recurse
-        val prevContext = prevStep map (this.inverseFilteredVocabulary(_)) groupBy (_._1)
-        val currentContext = head map (this.inverseFilteredVocabulary(_)) groupBy (_._1)
 
         // Apply the heuristic
         // Inferred context of type "x"
-        val newRepetitions = new Array[Int](repetitions.size)
+        val newRepetitions = mutable.HashMap.empty[Int, Int]
 
-        val currentStep = contextTypes.flatMap{ // Do this for each type of context. Flat Map as there could be more than one context of a type (maybe)
-          contextType =>
-            val stepIx = this.contextTypes.indexOf(contextType)
-
-            if(repetitions(stepIx) < bound){
-              (prevContext.lift(contextType), currentContext.lift(contextType)) match {
-                // No prev, Current
-                case (None, Some(curr)) =>
-                  newRepetitions(stepIx) = 1
-                  untie(curr)
-                // Prev, No current
-                case (Some(prev), None) =>
-                  newRepetitions(stepIx) = repetitions(stepIx)+1
-                  Seq(prev.head)
-                // Prev, Current
-                case (Some(prev), Some(curr)) =>
-                  newRepetitions(stepIx) = 1
-                  untie(curr)
-                // No prev, No current
-                case (None, None) =>
-                  newRepetitions(stepIx) = 1
-                  Nil
-              }
+        // Pad the old mentions
+        val extendedContext:Set[Int] = repetitions.map{
+          case (ctx, rep) =>
+            if(rep + 1 < bound){
+              newRepetitions(ctx) = rep+1
             }
             else{
-              newRepetitions(stepIx) = 1
-              currentContext.lift(contextType) match {
-                case Some(curr) =>
-                  untie(curr)
-                case None =>
-                  Seq()
-              }
+              newRepetitions -= ctx
             }
+            ctx
+        }.toSet
 
-        } map (this.filteredVocabulary(_))
+        // Count the current mentions
+        head.foreach{
+          newRepetitions(_) = 1
+        }
 
-        // Recurse
-        currentStep :: padContext(currentStep, tail, newRepetitions, bound)
+        val currentStep = (extendedContext ++ head.toSet).toList
+
+        println(newRepetitions.values.mkString(" "))
+        currentStep :: padContext(currentStep, tail, newRepetitions.toMap, bound)
 
 
       case Nil => Nil
     }
   }
-  // Apply the policy
-  protected override def inferContext = padContext(Seq(), latentSparseMatrix, Seq.fill(this.contextTypes.size)(1), bound)
+
+  protected override def inferContext = padContext(Seq(), latentSparseMatrix, Map(), bound)
 
   protected override def extractEntryFeatures(entry:FriesEntry):Array[(String, Double)] = Array()
 }
@@ -97,19 +136,21 @@ class FillingContext(vocabulary:Map[(String, String), Int],
       val paddedContext = super.inferContext
 
       // Now for each line assign a default context if necessary
-      paddedContext map {
-        step =>
-          // Existing contexts for this line
-          val context = step.map(this.inverseFilteredVocabulary(_)).groupBy(_._1)
-          this.contextTypes flatMap {
-            ctype =>
-              context.lift(ctype) match {
-                case Some(x) =>
-                  x map (this.filteredVocabulary(_))
-                case None =>
-                  defaultContexts.lift(ctype).getOrElse(Seq())
-              }
-          }
-      }
+      // paddedContext map {
+      //   step =>
+      //     // Existing contexts for this line
+      //     val context = step.map(this.inverseFilteredVocabulary(_)).groupBy(_._1)
+      //     this.contextTypes flatMap {
+      //       ctype =>
+      //         context.lift(ctype) match {
+      //           case Some(x) =>
+      //             x map (this.filteredVocabulary(_))
+      //           case None =>
+      //             defaultContexts.lift(ctype).getOrElse(Seq())
+      //         }
+      //     }
+      // }
+
+      paddedContext
     }
 }
