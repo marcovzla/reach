@@ -119,7 +119,7 @@ abstract class Context(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[Bio
 
 class DummyContext(vocabulary:Map[(String, String), Int], lines:Seq[(Seq[BioMention], FriesEntry)], manualAnn:Map[Int, Seq[(String, String)]]) extends Context(vocabulary, lines, manualAnn){
   protected override def inferContext = {
-    println(s"Columns: ${this.latentSparseMatrix.flatMap(x=>x).toSet.size}")
+    // println(s"Columns: ${this.latentSparseMatrix.flatMap(x=>x).toSet.size}")
     this.latentSparseMatrix
   }
   protected override def extractEntryFeatures(entry:FriesEntry):Array[(String, Double)] = Array()

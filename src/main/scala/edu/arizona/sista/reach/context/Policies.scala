@@ -101,7 +101,6 @@ class BoundedPaddingContext(vocabulary:Map[(String, String), Int],
 
         val currentStep = (extendedContext ++ head.toSet).toList
 
-        println(newRepetitions.values.mkString(" "))
         currentStep :: padContext(currentStep, tail, newRepetitions.toMap, bound)
 
 
@@ -136,20 +135,20 @@ class FillingContext(vocabulary:Map[(String, String), Int],
       val paddedContext = super.inferContext
 
       // Now for each line assign a default context if necessary
-      // paddedContext map {
-      //   step =>
-      //     // Existing contexts for this line
-      //     val context = step.map(this.inverseFilteredVocabulary(_)).groupBy(_._1)
-      //     this.contextTypes flatMap {
-      //       ctype =>
-      //         context.lift(ctype) match {
-      //           case Some(x) =>
-      //             x map (this.filteredVocabulary(_))
-      //           case None =>
-      //             defaultContexts.lift(ctype).getOrElse(Seq())
-      //         }
-      //     }
-      // }
+      paddedContext map {
+        step =>
+          // Existing contexts for this line
+          val context = step.map(this.inverseFilteredVocabulary(_)).groupBy(_._1)
+          this.contextTypes flatMap {
+            ctype =>
+              context.lift(ctype) match {
+                case Some(x) =>
+                  x map (this.filteredVocabulary(_))
+                case None =>
+                  defaultContexts.lift(ctype).getOrElse(Seq())
+              }
+          }
+      }
 
       paddedContext
     }
