@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, FlatSpec}
 
 class TestAssemblyDataStructures extends FlatSpec with Matchers {
 
-  "A complex" should "be equivalent to a Binding SimpleEvent when the members of the complex == the output of the SimpleEvent" in {
+  "A ComplexEntity" should "be equivalent to a Binding SimpleEvent when the members of the ComplexEntity == the output of the SimpleEvent" in {
     val ras = SimpleEntity("someid:1")
     val mek = SimpleEntity("someid:2")
 
@@ -18,14 +18,14 @@ class TestAssemblyDataStructures extends FlatSpec with Matchers {
     be2.isEquivalentTo(complex) should be (true)
   }
 
-  it should "have the same \"output\" as a Binding SimpleEvent when the members of the complex == the output of the SimpleEvent" in {
+  it should "have the same \"output\" as a Binding SimpleEvent when the members of the ComplexEntity == the output of the SimpleEvent" in {
     val ras = SimpleEntity("someid:1")
     val mek = SimpleEntity("someid:2")
 
     val complex = ComplexEntity(Set(ras, mek))
     val bindingEvent = SimpleEvent(Seq(ras, mek))
 
-    bindingEvent.hasSameOutputAs(complex) should be (true)
+    bindingEvent.sameOutputAs(complex) should be (true)
 
     val be2 = SimpleEvent(Seq(ras, mek), complex,"Binding")
     be2.hasSameOutputAs(complex) should be (true)
