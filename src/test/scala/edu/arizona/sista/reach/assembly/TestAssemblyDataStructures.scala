@@ -28,7 +28,20 @@ class TestAssemblyDataStructures extends FlatSpec with Matchers {
     bindingEvent.sameOutputAs(complex) should be (true)
 
     val be2 = SimpleEvent(Seq(ras, mek), complex,"Binding")
-    be2.hasSameOutputAs(complex) should be (true)
+    be2.sameOutputAs(complex) should be (true)
+  }
+
+  it should "have the same \"input\" as a Binding SimpleEvent when the members of the ComplexEntity == the input of the SimpleEvent" in {
+    val ras = SimpleEntity("someid:1")
+    val mek = SimpleEntity("someid:2")
+
+    val complex = ComplexEntity(Set(ras, mek))
+    val bindingEvent = SimpleEvent(Seq(ras, mek))
+
+    bindingEvent.sameInputAs(complex) should be (true)
+
+    val be2 = SimpleEvent(Seq(ras, mek), complex,"Binding")
+    be2.sameInputAs(complex) should be (true)
   }
 
   "Entities differing in their IDs" should "not be equivalent" in {
