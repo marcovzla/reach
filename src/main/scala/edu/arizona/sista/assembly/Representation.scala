@@ -59,22 +59,24 @@ case class SimpleEvent(input: Set[Entity], output: Set[Entity], label: String) e
 
 
   def isEquivalentTo(other: Category): Boolean = other match {
-    case complex: ComplexEntity => this.output == complex.getOutput && this.input == complex.getInput
     // functionality to compare Binding SimpleEvent to a ComplexEntity
+    case complex: ComplexEntity => this.getOutput == complex.getOutput && this.getInput == complex.getInput
     case se: SimpleEvent => this == se
     case _ => false
   }
 
-  def hasSameOutputAs(other: Category): Boolean = other match {
-    case complex: ComplexEntity => this.output == complex.getOutput
+  def sameOutputAs(other: Category): Boolean = other match {
     // functionality to compare Binding SimpleEvent to a ComplexEntity
-    case se: SimpleEvent => this == se
+    case complex: ComplexEntity => this.getOutput == complex.getOutput
+    case se: SimpleEvent => this.getOutput == se.getOutput
     case _ => false
   }
 
-  def inputMatches(other: Category): Boolean = other match {
-    case se: SimpleEvent => this.input == se.input
-    case reg: Regulation => this.input == reg.controlled
+  def sameInputAs(other: Category): Boolean = other match {
+    // functionality to compare Binding SimpleEvent to a ComplexEntity
+    case complex: ComplexEntity => this.getInput == complex.getInput
+    case se: SimpleEvent => this.getInput == se.getInput
+    case reg: Regulation => this.getInput == reg.getInput
   }
 }
 
