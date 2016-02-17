@@ -24,7 +24,12 @@ object SimpleEntity {
   def apply(id: String): SimpleEntity = new SimpleEntity(id, Set.empty[String])
 }
 
-case class ComplexEntity(entities: Set[SimpleEntity]) extends Entity
+case class ComplexEntity(entities: Set[SimpleEntity]) extends Entity {
+  type I = Set[SimpleEntity]
+  type O = Set[ComplexEntity]
+  def getInput: I = entities
+  def getOutput: O = Set(this)
+}
 
 ///////////////////////////////
 // Events
@@ -51,6 +56,26 @@ case class SimpleEvent(input: Set[Entity], output: Set[Entity], label: String) e
             output: Set[Entity] = this.output,
             label: String = this.label
             ): SimpleEvent =  new SimpleEvent(input, output, label)
+
+
+  def isEquivalentTo(other: Category): Boolean = other match {
+    case complex: ComplexEntity => this.output == complex.getOutput && this.input == complex.getInput
+    // functionality to compare Binding SimpleEvent to a ComplexEntity
+    case se: SimpleEvent => this == se
+    case _ => false
+  }
+
+  def hasSameOutputAs(other: Category): Boolean = other match {
+    case complex: ComplexEntity => this.output == complex.getOutput
+    // functionality to compare Binding SimpleEvent to a ComplexEntity
+    case se: SimpleEvent => this == se
+    case _ => false
+  }
+
+  def inputMatches(other: Category): Boolean = other match {
+    case se: SimpleEvent => this.input == se.input
+    case reg: Regulation => this.input == reg.controlled
+  }
 }
 
 object SimpleEvent {
@@ -68,6 +93,10 @@ object SimpleEvent {
     case _ =>
       val output: Entity = input.copy(modifications = input.modifications ++ Set(label))
       new SimpleEvent(Set(input), Set(output), label)
+  }
+  def apply(input: Seq[SimpleEntity]): SimpleEvent = {
+    val output = ComplexEntity(input.toSet)
+    new SimpleEvent(input.toSet, Set(output), "Binding")
   }
 }
 
