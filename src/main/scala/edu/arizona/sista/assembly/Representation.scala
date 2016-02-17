@@ -24,10 +24,10 @@ object SimpleEntity {
   def apply(id: String): SimpleEntity = new SimpleEntity(id, Set.empty[String])
 }
 
-case class ComplexEntity(entities: Set[SimpleEntity]) extends Entity {
+case class ComplexEntity(members: Set[SimpleEntity]) extends Entity {
   type I = Set[SimpleEntity]
   type O = Set[ComplexEntity]
-  def getInput: I = entities
+  def getInput: I = members
   def getOutput: O = Set(this)
 }
 
