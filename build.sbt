@@ -14,7 +14,7 @@ testOptions in Test += Tests.Argument("-oD")
 fork := true
 
 // options for forked jvm
-javaOptions += "-Xmx10G"
+javaOptions += "-Xmx6G"
 
 // forward sbt's stdin to forked process
 connectInput in run := true
