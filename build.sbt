@@ -16,7 +16,7 @@ fork := true
 parallelExecution in Test := false
 
 // options for forked jvm
-javaOptions += "-Xmx6G"
+javaOptions += "-Xmx5G"
 
 // forward sbt's stdin to forked process
 connectInput in run := true
