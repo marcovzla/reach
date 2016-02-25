@@ -13,6 +13,8 @@ testOptions in Test += Tests.Argument("-oD")
 // fork jvm to separate process
 fork := true
 
+parallelExecution in Test := false
+
 // options for forked jvm
 javaOptions += "-Xmx6G"
 
