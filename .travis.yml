@@ -1,23 +1,5 @@
+sudo: required
 dist: trusty
-sudo: true
-
 language: scala
-
 scala:
-    - 2.11.6
-
-os:
-    - linux
-
-# test against multiple JDKs
-jdk:
-    - oraclejdk8
-    # not yet supported
-    #- openjdk8
-
-# tests should run under 6GB of memory
-#sbt_args: -J-Xmx6G
-
-# run tests
-script:
-    - sbt test
+  - 2.11.6
